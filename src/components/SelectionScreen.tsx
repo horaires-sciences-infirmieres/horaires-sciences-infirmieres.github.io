@@ -21,7 +21,7 @@ interface SelectionScreenProps {
 
 export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenProps) {
   const [semestre, setSemestre] = useState<Semestre>(
-    initialSelection?.semestre ?? getDefaultSemestre(),
+    () => initialSelection?.semestre ?? getDefaultSemestre(),
   )
   const [selectedVolee, setSelectedVolee] = useState<string | null>(
     initialSelection?.volee ?? null,

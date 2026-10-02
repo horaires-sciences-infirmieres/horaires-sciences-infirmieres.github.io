@@ -37,9 +37,11 @@ interface ScheduleScreenProps {
 }
 
 export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
+  // Date du jour, lue une seule fois à l'ouverture de l'écran (passage de minuit non géré).
+  const [today] = useState(() => new Date())
   const [schedule, setSchedule] = useState<LoadState<ScheduleResponse>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
-  const [weekStart, setWeekStart] = useState(() => getInitialWeekStart())
+  const [weekStart, setWeekStart] = useState(() => getInitialWeekStart(today))
   const [isScrolled, setIsScrolled] = useState(false)
   const screenRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -182,7 +184,8 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
     )
   }
 
-  const week = schedule.status === 'ok' ? buildWeek(schedule.data.cours, weekStart) : null
+  const week =
+    schedule.status === 'ok' ? buildWeek(schedule.data.cours, weekStart, today) : null
 
   return (
     <div className="schedule-screen" ref={screenRef}>
@@ -262,7 +265,12 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
 
           <section className="week-days" aria-label={`Cours de la semaine du ${week.range}`}>
             {week.days.map((day) => (
-              <DayGroup key={toDateKey(day.date)} date={day.date} courses={day.courses} />
+              <DayGroup
+                key={toDateKey(day.date)}
+                date={day.date}
+                courses={day.courses}
+                today={today}
+              />
             ))}
           </section>
         </>
@@ -287,14 +295,14 @@ interface Week {
 }
 
 // Calcule ce qu'il faut afficher pour la semaine ; null s'il n'y a aucun cours daté.
-function buildWeek(courses: Cours[], weekStart: Date): Week | null {
+function buildWeek(courses: Cours[], weekStart: Date, today: Date): Week | null {
   const coursesByDate = groupCoursesByDate(courses)
   const dateKeys = [...coursesByDate.keys()].sort()
   if (dateKeys.length === 0) return null
 
   const firstWeek = startOfWeek(parseDate(dateKeys[0]))
   const lastWeek = startOfWeek(parseDate(dateKeys[dateKeys.length - 1]))
-  const todayWeek = getInitialWeekStart()
+  const todayWeek = getInitialWeekStart(today)
 
   // Lundi à vendredi toujours, samedi et dimanche seulement s'ils ont des cours.
   const days = Array.from({ length: 7 }, (_, index) => {

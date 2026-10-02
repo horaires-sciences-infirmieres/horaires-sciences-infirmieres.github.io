@@ -5,10 +5,11 @@ import { CourseRow } from './CourseRow'
 interface DayGroupProps {
   date: Date
   courses: Cours[]
+  today: Date
 }
 
-export function DayGroup({ date, courses }: DayGroupProps) {
-  const isToday = isSameDay(date, new Date())
+export function DayGroup({ date, courses, today }: DayGroupProps) {
+  const isToday = isSameDay(date, today)
 
   return (
     <div className={isToday ? 'day-group day-group--today' : 'day-group'}>
