@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: max(8px, env(safe-area-inset-top)) 16px 10px 4px;
+  padding: max(8px, env(safe-area-inset-top)) 8px 10px 4px;
   background: var(--color-bar);
   color: #ffffff;
 }
@@ -56,6 +56,7 @@
 }
 
 .schedule-bar-text {
+  flex: 1;
   min-width: 0;
 }
 
@@ -72,6 +73,43 @@
   margin: 2px 0 0;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* Pastille « Tout » : zone tactile de 44 px autour de la pastille visible. */
+.view-toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.view-toggle-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.view-toggle[aria-pressed='true'] .view-toggle-pill {
+  background: #ffffff;
+  color: var(--color-accent);
+}
+
+.view-toggle:focus-visible {
+  outline: none;
+}
+
+.view-toggle:focus-visible .view-toggle-pill {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* Bandeau */
@@ -219,6 +257,24 @@
   outline-offset: 2px;
 }
 
+/* Titre du mode Tout, à la place de la navigation de semaine */
+
+.all-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-background);
+}
+
+.all-heading-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
 /* Jours */
 
 .week-days {
@@ -237,11 +293,16 @@
 }
 
 .day-header {
+  position: sticky;
+  top: var(--schedule-top-height, 0px);
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  padding: 4px 0;
+  background: var(--color-background);
 }
 
 .day-header-title {
@@ -324,6 +385,24 @@
 .course-row {
   display: flex;
   gap: 12px;
+  width: 100%;
+}
+
+/* Ligne cliquable quand le cours a un détail. */
+.course-row--button {
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.course-row--button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
 }
 
 .course-row-bar {
@@ -333,29 +412,114 @@
 }
 
 .course-row-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
   padding: 2px 0;
 }
 
 .course-row-title {
-  margin: 0 0 4px;
+  margin-bottom: 4px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.course-row-detail {
+.course-row-meta {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 2px 0 0;
+  margin-top: 2px;
   font-size: 14px;
   color: var(--color-text-secondary);
 }
 
-.course-row-detail svg {
+.course-row-meta svg {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+}
+
+.course-row-chevron {
+  flex-shrink: 0;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+}
+
+.course-row--button[aria-expanded='true'] .course-row-chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .course-row-chevron {
+    transition: none;
+  }
+}
+
+/* Détail du cours */
+
+.course-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0 4px 17px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--color-banner-background);
+}
+
+/* Sans cette règle, display: flex ci-dessus l'emporterait sur l'attribut hidden. */
+.course-detail[hidden] {
+  display: none;
+}
+
+.course-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.course-detail-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #ffffff;
+}
+
+.course-detail-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.course-detail-icon--content {
+  background: var(--color-accent);
+}
+
+.course-detail-icon--teacher {
+  background: var(--color-coral);
+}
+
+.course-detail-icon--option {
+  background: var(--color-teal);
+}
+
+.course-detail dt {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.course-detail dd {
+  margin: 0;
+  font-size: 15px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 /* Aucun cours */

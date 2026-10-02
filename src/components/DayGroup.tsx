@@ -1,5 +1,5 @@
 import type { Cours } from '../api'
-import { formatFullDate, formatShortMonth, formatWeekday, isSameDay } from '../dates'
+import { formatFullDate, formatShortMonth, formatWeekday, isSameDay, toDateKey } from '../dates'
 import { CourseRow } from './CourseRow'
 
 interface DayGroupProps {
@@ -12,7 +12,7 @@ export function DayGroup({ date, courses, today }: DayGroupProps) {
   const isToday = isSameDay(date, today)
 
   return (
-    <div className={isToday ? 'day-group day-group--today' : 'day-group'}>
+    <div className="day-group" data-date={toDateKey(date)}>
       <div className={isToday ? 'day-header day-header--today' : 'day-header'}>
         <h3 className="day-header-title">
           <span className="day-header-date" aria-hidden="true">

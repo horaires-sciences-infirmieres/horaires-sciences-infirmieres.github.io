@@ -73,3 +73,29 @@ export function CalendarIcon({ className }: IconProps) {
     </Icon>
   )
 }
+
+export function TextIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </Icon>
+  )
+}
+
+export function PersonIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </Icon>
+  )
+}
+
+export function TagIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" />
+      <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" />
+    </Icon>
+  )
+}

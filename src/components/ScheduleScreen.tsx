@@ -31,6 +31,8 @@ const SEMESTRE_LABELS: Record<Semestre, string> = {
   printemps: 'Semestre de printemps',
 }
 
+type ViewMode = 'week' | 'all'
+
 interface ScheduleScreenProps {
   selection: Selection
   onBack: () => void
@@ -42,12 +44,14 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
   const [schedule, setSchedule] = useState<LoadState<ScheduleResponse>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
   const [weekStart, setWeekStart] = useState(() => getInitialWeekStart(today))
+  const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [isScrolled, setIsScrolled] = useState(false)
   const screenRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
-  // Défilement vers le jour même, à faire après le prochain affichage de la semaine :
-  // à l'ouverture de l'écran (instantané) ou après « Aujourd'hui » (animé).
-  const pendingScrollRef = useRef<'opening' | 'todayButton' | null>('opening')
+  // Défilement à faire après le prochain affichage de la liste :
+  // vers le jour même à l'ouverture (instantané) ou après « Aujourd'hui » (animé),
+  // ou, en passant en mode Tout, vers le jour même ou le prochain jour avec cours (instantané).
+  const pendingScrollRef = useRef<'opening' | 'todayButton' | 'allMode' | null>('opening')
 
   useEffect(() => {
     let cancelled = false
@@ -85,7 +89,7 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
   }, [])
 
   // Publie la hauteur du bloc du haut dans --schedule-top-height,
-  // pour placer les en-têtes de jour collants juste en dessous (partie B).
+  // pour placer les en-têtes de jour collants juste en dessous.
   useEffect(() => {
     const screen = screenRef.current
     const top = topRef.current
@@ -101,7 +105,7 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
     }
   }, [])
 
-  // Après l'affichage d'une semaine, fait défiler jusqu'au jour même si c'est demandé.
+  // Après l'affichage de la liste, fait défiler jusqu'au jour demandé.
   useEffect(() => {
     const pendingScroll = pendingScrollRef.current
     const screen = screenRef.current
@@ -109,9 +113,12 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
     if (pendingScroll === null || schedule.status !== 'ok' || !screen || !top) return
     pendingScrollRef.current = null
 
-    const todayElement = screen.querySelector('.day-group--today')
-    if (todayElement === null) {
-      // La semaine affichée ne contient pas le jour même : on reste en haut.
+    const target =
+      pendingScroll === 'allMode'
+        ? findAllModeTarget(screen, today)
+        : screen.querySelector(`[data-date="${toDateKey(today)}"]`)
+    if (target === null) {
+      // Jour cible absent de la liste affichée : on reste en haut.
       window.scrollTo(0, 0)
       return
     }
@@ -119,11 +126,11 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
     // Hauteur à jour du bloc du haut, sans attendre le ResizeObserver.
     publishTopHeight(screen, top)
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    todayElement.scrollIntoView({
+    target.scrollIntoView({
       block: 'start',
       behavior: pendingScroll === 'todayButton' && !prefersReducedMotion ? 'smooth' : 'auto',
     })
-  }, [schedule.status, weekStart])
+  }, [schedule.status, weekStart, viewMode, today])
 
   function retry() {
     setSchedule({ status: 'loading' })
@@ -140,6 +147,19 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
   function goToToday(todayWeek: Date) {
     pendingScrollRef.current = 'todayButton'
     setWeekStart(todayWeek)
+  }
+
+  // Mode Tout : défilement vers le jour même ou le prochain jour avec cours, après l'affichage.
+  // Retour au mode Semaine : semaine affichée auparavant (weekStart inchangé), en haut de page.
+  function toggleViewMode() {
+    if (viewMode === 'week') {
+      pendingScrollRef.current = 'allMode'
+      setViewMode('all')
+    } else {
+      pendingScrollRef.current = null
+      setViewMode('week')
+      window.scrollTo(0, 0)
+    }
   }
 
   function renderBanner() {
@@ -184,8 +204,33 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
     )
   }
 
-  const week =
-    schedule.status === 'ok' ? buildWeek(schedule.data.cours, weekStart, today) : null
+  function renderDays(days: WeekDay[], label: string) {
+    return (
+      <section className="week-days" aria-label={label}>
+        {days.map((day) => (
+          <DayGroup
+            key={toDateKey(day.date)}
+            date={day.date}
+            courses={day.courses}
+            today={today}
+          />
+        ))}
+      </section>
+    )
+  }
+
+  const coursesByDate = schedule.status === 'ok' ? groupCoursesByDate(schedule.data.cours) : null
+  const week = coursesByDate !== null ? buildWeek(coursesByDate, weekStart, today) : null
+  const isAllMode = viewMode === 'all'
+  const allDays = coursesByDate !== null && isAllMode ? getAllDays(coursesByDate) : []
+
+  // Annoncé aux lecteurs d'écran à chaque changement de semaine ou de mode.
+  let liveMessage = ''
+  if (week !== null) {
+    liveMessage = isAllMode
+      ? `Tous les cours : ${countCourses(allDays)} cours`
+      : `Semaine du ${week.range} : ${week.courseCount} cours`
+  }
 
   return (
     <div className="schedule-screen" ref={screenRef}>
@@ -208,11 +253,27 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
               {MODALITE_LABELS[selection.modalite]} · {SEMESTRE_LABELS[selection.semestre]}
             </p>
           </div>
+          {week !== null && (
+            <button
+              type="button"
+              className="view-toggle"
+              aria-pressed={isAllMode}
+              onClick={toggleViewMode}
+            >
+              <span className="view-toggle-pill">Tout</span>
+            </button>
+          )}
         </header>
 
         <div className="schedule-banner">{renderBanner()}</div>
 
-        {week !== null && (
+        {week !== null && isAllMode && (
+          <div className="all-heading">
+            <h2 className="all-heading-title">Tous les cours</h2>
+          </div>
+        )}
+
+        {week !== null && !isAllMode && (
           <nav className="week-nav" aria-label="Navigation par semaine">
             <button
               type="button"
@@ -258,23 +319,14 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
       )}
 
       {week !== null && (
-        <>
-          <p className="visually-hidden" aria-live="polite">
-            Semaine du {week.range} : {week.courseCount} cours
-          </p>
-
-          <section className="week-days" aria-label={`Cours de la semaine du ${week.range}`}>
-            {week.days.map((day) => (
-              <DayGroup
-                key={toDateKey(day.date)}
-                date={day.date}
-                courses={day.courses}
-                today={today}
-              />
-            ))}
-          </section>
-        </>
+        <p className="visually-hidden" aria-live="polite">
+          {liveMessage}
+        </p>
       )}
+
+      {week !== null && !isAllMode && renderDays(week.days, `Cours de la semaine du ${week.range}`)}
+
+      {week !== null && isAllMode && renderDays(allDays, 'Tous les cours')}
     </div>
   )
 }
@@ -295,8 +347,11 @@ interface Week {
 }
 
 // Calcule ce qu'il faut afficher pour la semaine ; null s'il n'y a aucun cours daté.
-function buildWeek(courses: Cours[], weekStart: Date, today: Date): Week | null {
-  const coursesByDate = groupCoursesByDate(courses)
+function buildWeek(
+  coursesByDate: Map<string, Cours[]>,
+  weekStart: Date,
+  today: Date,
+): Week | null {
   const dateKeys = [...coursesByDate.keys()].sort()
   if (dateKeys.length === 0) return null
 
@@ -312,13 +367,32 @@ function buildWeek(courses: Cours[], weekStart: Date, today: Date): Week | null 
 
   return {
     days,
-    courseCount: days.reduce((total, day) => total + day.courses.length, 0),
+    courseCount: countCourses(days),
     range: formatWeekRange(weekStart),
     todayWeek,
     isPreviousDisabled: weekStart.getTime() <= firstWeek.getTime(),
     isNextDisabled: weekStart.getTime() >= lastWeek.getTime(),
     isTodayWeek: weekStart.getTime() === todayWeek.getTime(),
   }
+}
+
+// Tous les jours qui ont des cours, du premier au dernier.
+function getAllDays(coursesByDate: Map<string, Cours[]>): WeekDay[] {
+  return [...coursesByDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dateKey, courses]) => ({ date: parseDate(dateKey), courses }))
+}
+
+// Cible du défilement en mode Tout : le premier jour affiché à partir d'aujourd'hui
+// (le jour même s'il a des cours, sinon le prochain), ou le dernier jour s'il n'y en a plus.
+function findAllModeTarget(screen: HTMLElement, today: Date): Element | null {
+  const todayKey = toDateKey(today)
+  const days = [...screen.querySelectorAll<HTMLElement>('.day-group[data-date]')]
+  return days.find((day) => (day.dataset.date ?? '') >= todayKey) ?? days.at(-1) ?? null
+}
+
+function countCourses(days: WeekDay[]): number {
+  return days.reduce((total, day) => total + day.courses.length, 0)
 }
 
 // Regroupe les cours datés par jour (clé AAAA-MM-JJ) et les trie par heure de début.
@@ -348,6 +422,9 @@ function compareByStartTime(a: Cours, b: Cours): number {
 }
 
 // Écrit la hauteur du bloc du haut dans --schedule-top-height.
+// Arrondie au pixel supérieur : un en-tête collant passe un peu sous le bloc plutôt
+// que de laisser une fente où l'on verrait défiler la liste.
 function publishTopHeight(screen: HTMLElement, top: HTMLElement) {
-  screen.style.setProperty('--schedule-top-height', `${top.offsetHeight}px`)
+  const height = Math.ceil(top.getBoundingClientRect().height)
+  screen.style.setProperty('--schedule-top-height', `${height}px`)
 }
