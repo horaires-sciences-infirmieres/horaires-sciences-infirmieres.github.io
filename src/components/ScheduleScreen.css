@@ -1,0 +1,370 @@
+.schedule-screen {
+  max-width: 600px;
+  min-height: 100dvh;
+  margin: 0 auto;
+}
+
+/* Bloc du haut (barre, bandeau, navigation), collé pendant le défilement.
+   Sa hauteur est publiée dans --schedule-top-height par ScheduleScreen.tsx. */
+
+.schedule-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-background);
+  transition: box-shadow 0.2s;
+}
+
+.schedule-top--scrolled {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Barre du haut */
+
+.schedule-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: max(8px, env(safe-area-inset-top)) 16px 10px 4px;
+  background: var(--color-bar);
+  color: #ffffff;
+}
+
+.schedule-back {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.schedule-back:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+}
+
+.schedule-back-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.schedule-bar-text {
+  min-width: 0;
+}
+
+.schedule-bar-text h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-bar-text p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Bandeau */
+
+.schedule-banner {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-banner-background);
+}
+
+.schedule-banner p {
+  margin: 0;
+}
+
+.banner-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.banner-check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  color: var(--color-success);
+}
+
+.banner-title {
+  font-weight: 600;
+}
+
+.banner-secondary {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.banner-line {
+  font-size: 15px;
+}
+
+.banner-file {
+  color: var(--color-text-secondary);
+}
+
+.banner-retry {
+  margin-top: 10px;
+}
+
+/* Navigation de semaine */
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-background);
+}
+
+.week-nav-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.week-nav-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.week-nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.week-nav-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.week-nav-range {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Zone tactile de 44 px autour d'une pastille visible de 32 px. */
+.week-nav-today {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.week-nav-today-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--color-accent-background);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.week-nav-today-pill svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.week-nav-today--hidden {
+  visibility: hidden;
+}
+
+.week-nav-today:focus-visible {
+  outline: none;
+}
+
+.week-nav-today:focus-visible .week-nav-today-pill {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.week-nav-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Jours */
+
+.week-days {
+  padding: 0 16px 24px;
+}
+
+.day-group {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-separator);
+  /* Défilement vers un jour : s'arrête juste sous le bloc du haut collé. */
+  scroll-margin-top: var(--schedule-top-height, 0px);
+}
+
+.day-group:last-child {
+  border-bottom: none;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.day-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.day-header-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 44px;
+}
+
+.day-header-month {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.day-header-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.day-header-weekday {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.day-header--today .day-header-month {
+  color: var(--color-accent);
+}
+
+.day-header--today .day-header-number {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.day-header-count {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.day-empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}
+
+/* Lignes de cours */
+
+.course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-row {
+  display: flex;
+  gap: 12px;
+}
+
+.course-row-bar {
+  flex-shrink: 0;
+  width: 5px;
+  border-radius: 3px;
+}
+
+.course-row-body {
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.course-row-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.course-row-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.course-row-detail svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Aucun cours */
+
+.schedule-empty {
+  margin: 24px 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-banner-background);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
