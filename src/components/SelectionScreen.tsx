@@ -15,18 +15,18 @@ const MODALITE_OPTIONS: { value: Modalite; label: string }[] = [
 ]
 
 interface SelectionScreenProps {
-  initialSelection: Selection | null
+  initialSelection: Partial<Selection>
   onSubmit: (selection: Selection) => void
 }
 
 export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenProps) {
   const [semestre, setSemestre] = useState<Semestre>(
-    () => initialSelection?.semestre ?? getDefaultSemestre(),
+    () => initialSelection.semestre ?? getDefaultSemestre(),
   )
   const [selectedVolee, setSelectedVolee] = useState<string | null>(
-    initialSelection?.volee ?? null,
+    initialSelection.volee ?? null,
   )
-  const [modalite, setModalite] = useState<Modalite>(initialSelection?.modalite ?? 'tempsPlein')
+  const [modalite, setModalite] = useState<Modalite>(initialSelection.modalite ?? 'tempsPlein')
   const [volees, setVolees] = useState<LoadState<string[]>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
