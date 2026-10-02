@@ -2,6 +2,7 @@
   /* Couleurs de l'app iOS */
   --color-bar: #7476d8;
   --color-accent: #7b6fe8;
+  --color-accent-background: rgba(123, 111, 232, 0.1);
   --gradient-button: linear-gradient(to right, #7b6fe8, #5a55d6);
 
   /* Texte, séparateurs, fonds */
@@ -43,4 +44,21 @@ body {
   color: var(--color-text);
   background: var(--color-background);
   -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+}
+
+/* Masque un élément à l'écran tout en le gardant pour le clavier et les lecteurs d'écran. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
