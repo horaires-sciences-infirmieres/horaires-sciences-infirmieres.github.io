@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   fetchSchedule,
   type Cours,
-  type Modalite,
   type ScheduleResponse,
   type Semestre,
 } from '../api'
@@ -15,52 +14,58 @@ import {
   startOfWeek,
   toDateKey,
 } from '../dates'
+import { MODALITE_LABELS, OPTION_LABELS } from '../labels'
 import { errorState, type LoadState } from '../loadState'
-import type { Selection } from '../selection'
+import type { Selection, ViewMode } from '../selection'
 import { DayGroup } from './DayGroup'
 import { CalendarIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons'
 import './ScheduleScreen.css'
-
-const MODALITE_LABELS: Record<Modalite, string> = {
-  tempsPlein: 'Temps plein',
-  partiel: 'Temps partiel',
-}
 
 const SEMESTRE_LABELS: Record<Semestre, string> = {
   automne: "Semestre d'automne",
   printemps: 'Semestre de printemps',
 }
 
-type ViewMode = 'week' | 'all'
-
 interface ScheduleScreenProps {
   selection: Selection
+  viewMode: ViewMode
+  onViewModeChange: (viewMode: ViewMode) => void
   onBack: () => void
 }
 
-export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
+export function ScheduleScreen({
+  selection,
+  viewMode,
+  onViewModeChange,
+  onBack,
+}: ScheduleScreenProps) {
   // Date du jour, lue une seule fois à l'ouverture de l'écran (passage de minuit non géré).
   const [today] = useState(() => new Date())
   const [schedule, setSchedule] = useState<LoadState<ScheduleResponse>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
   const [weekStart, setWeekStart] = useState(() => getInitialWeekStart(today))
-  const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [isScrolled, setIsScrolled] = useState(false)
   const screenRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
   // Défilement à faire après le prochain affichage de la liste :
   // vers le jour même à l'ouverture (instantané) ou après « Aujourd'hui » (animé),
-  // ou, en passant en mode Tout, vers le jour même ou le prochain jour avec cours (instantané).
-  const pendingScrollRef = useRef<'opening' | 'todayButton' | 'allMode' | null>('opening')
+  // ou, en mode Tout (ouverture ou bascule), vers le jour même ou le prochain jour avec
+  // cours (instantané).
+  const pendingScrollRef = useRef<'opening' | 'todayButton' | 'allMode' | null>(
+    viewMode === 'all' ? 'allMode' : 'opening',
+  )
 
   useEffect(() => {
     let cancelled = false
 
     async function loadSchedule() {
       try {
-        const response = await fetchSchedule(selection.semestre, selection.volee, [
+        const response = await fetchSchedule(
+          selection.semestre,
+          selection.volee,
           selection.modalite,
-        ])
+          selection.option,
+        )
         if (!cancelled) setSchedule({ status: 'ok', data: response })
       } catch (error) {
         if (!cancelled) setSchedule(errorState(error))
@@ -154,10 +159,10 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
   function toggleViewMode() {
     if (viewMode === 'week') {
       pendingScrollRef.current = 'allMode'
-      setViewMode('all')
+      onViewModeChange('all')
     } else {
       pendingScrollRef.current = null
-      setViewMode('week')
+      onViewModeChange('week')
       window.scrollTo(0, 0)
     }
   }
@@ -232,6 +237,8 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
       : `Semaine du ${week.range} : ${week.courseCount} cours`
   }
 
+  const details = formatDetails(selection)
+
   return (
     <div className="schedule-screen" ref={screenRef}>
       <div
@@ -248,10 +255,11 @@ export function ScheduleScreen({ selection, onBack }: ScheduleScreenProps) {
             <ChevronLeftIcon className="schedule-back-icon" />
           </button>
           <div className="schedule-bar-text">
-            <h1>{selection.volee}</h1>
-            <p>
-              {MODALITE_LABELS[selection.modalite]} · {SEMESTRE_LABELS[selection.semestre]}
-            </p>
+            <h1>
+              {selection.volee}
+              <span className="schedule-bar-semestre">{` · ${SEMESTRE_LABELS[selection.semestre]}`}</span>
+            </h1>
+            {details !== '' && <p>{details}</p>}
           </div>
           {week !== null && (
             <button
@@ -419,6 +427,15 @@ function compareByStartTime(a: Cours, b: Cours): number {
   if (!a.heureDebut) return b.heureDebut ? 1 : 0
   if (!b.heureDebut) return -1
   return a.heureDebut.localeCompare(b.heureDebut)
+}
+
+// Ligne 2 de la barre : "Temps partiel 6 semestres · Santé mentale" ; éléments absents omis.
+function formatDetails(selection: Selection): string {
+  const parts: string[] = []
+  if (selection.modalite) parts.push(MODALITE_LABELS[selection.modalite])
+  const optionLabel = selection.option ? OPTION_LABELS[selection.option] : undefined
+  if (optionLabel) parts.push(optionLabel)
+  return parts.join(' · ')
 }
 
 // Écrit la hauteur du bloc du haut dans --schedule-top-height.

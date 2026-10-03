@@ -1,24 +1,45 @@
-import { completeSelection, parseSelection, type Selection } from './selection'
+import {
+  completeSelection,
+  parseSelection,
+  parseViewMode,
+  viewModeValue,
+  type Selection,
+  type ViewMode,
+} from './selection'
 
 // Préfixe : toutes les pages smeusling.github.io partagent le même localStorage.
-const LAST_SELECTION_KEY = 'horaires-web:lastSelection'
+// v2 : les sélections enregistrées avant le changement d'API sont ignorées.
+const LAST_SCHEDULE_KEY = 'horaires-web:lastSelection:v2'
 
-export function loadLastSelection(): Selection | null {
+// Dernier horaire affiché : la sélection et le mode d'affichage.
+export interface LastSchedule {
+  selection: Selection
+  viewMode: ViewMode
+}
+
+export function loadLastSchedule(): LastSchedule | null {
   try {
-    const raw = localStorage.getItem(LAST_SELECTION_KEY)
+    const raw = localStorage.getItem(LAST_SCHEDULE_KEY)
     if (raw === null) return null
     const value: unknown = JSON.parse(raw)
     if (typeof value !== 'object' || value === null) return null
-    return completeSelection(parseSelection(value as Record<string, unknown>))
+    const record = value as Record<string, unknown>
+    const selection = completeSelection(parseSelection(record))
+    if (selection === null) return null
+    return { selection, viewMode: parseViewMode(record.vue) }
   } catch {
     // Stockage indisponible ou valeur illisible : comme s'il n'y avait rien.
     return null
   }
 }
 
-export function saveLastSelection(selection: Selection) {
+export function saveLastSchedule(selection: Selection, viewMode: ViewMode) {
   try {
-    localStorage.setItem(LAST_SELECTION_KEY, JSON.stringify(selection))
+    // "vue" absent en mode Semaine : JSON.stringify omet les valeurs undefined.
+    localStorage.setItem(
+      LAST_SCHEDULE_KEY,
+      JSON.stringify({ ...selection, vue: viewModeValue(viewMode) }),
+    )
   } catch {
     // Stockage indisponible (navigation privée, désactivé) : on continue sans mémoriser.
   }

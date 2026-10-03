@@ -69,9 +69,18 @@
   white-space: nowrap;
 }
 
+.schedule-bar-semestre {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .schedule-bar-text p {
   margin: 2px 0 0;
+  overflow: hidden;
   font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.75);
 }
 

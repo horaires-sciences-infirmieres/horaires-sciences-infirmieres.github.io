@@ -74,6 +74,32 @@ export function CalendarIcon({ className }: IconProps) {
   )
 }
 
+export function BookIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17z" />
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    </Icon>
+  )
+}
+
+export function NotepadIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <rect x="5" y="4" width="14" height="18" rx="2" />
+      <path d="M9 2v4M15 2v4M9 11h6M9 15h6" />
+    </Icon>
+  )
+}
+
+export function CheckIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </Icon>
+  )
+}
+
 export function TextIcon({ className }: IconProps) {
   return (
     <Icon className={className}>

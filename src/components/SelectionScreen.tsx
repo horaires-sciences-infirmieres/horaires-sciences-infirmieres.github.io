@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { fetchVolees, type Modalite, type Semestre } from '../api'
+import { useEffect, useState, type ReactNode } from 'react'
+import { fetchVolees, type Choice, type Modalite, type Semestre, type VoleeInfo } from '../api'
 import { errorState, type LoadState } from '../loadState'
 import { getDefaultSemestre, type Selection } from '../selection'
+import { BookIcon, CheckIcon, NotepadIcon } from './Icons'
 import './SelectionScreen.css'
 
 const SEMESTRE_OPTIONS: { value: Semestre; label: string }[] = [
@@ -9,9 +10,12 @@ const SEMESTRE_OPTIONS: { value: Semestre; label: string }[] = [
   { value: 'printemps', label: 'Printemps' },
 ]
 
-const MODALITE_OPTIONS: { value: Modalite; label: string }[] = [
-  { value: 'tempsPlein', label: 'Temps plein' },
-  { value: 'partiel', label: 'Temps partiel' },
+// Source des horaires. Les examens ne sont pas encore disponibles sur le site.
+type ScheduleSource = 'semester' | 'exams'
+
+const SOURCE_OPTIONS: { value: ScheduleSource; label: string; icon: ReactNode }[] = [
+  { value: 'semester', label: 'Semestre', icon: <BookIcon /> },
+  { value: 'exams', label: 'Examens', icon: <NotepadIcon /> },
 ]
 
 interface SelectionScreenProps {
@@ -20,18 +24,27 @@ interface SelectionScreenProps {
 }
 
 export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenProps) {
+  const [source, setSource] = useState<ScheduleSource>('semester')
   const [semestre, setSemestre] = useState<Semestre>(
     () => initialSelection.semestre ?? getDefaultSemestre(),
   )
   const [selectedVolee, setSelectedVolee] = useState<string | null>(
     initialSelection.volee ?? null,
   )
-  const [modalite, setModalite] = useState<Modalite>(initialSelection.modalite ?? 'tempsPlein')
-  const [volees, setVolees] = useState<LoadState<string[]>>({ status: 'loading' })
+  const [selectedOption, setSelectedOption] = useState<string | null>(
+    initialSelection.option ?? null,
+  )
+  const [selectedModalite, setSelectedModalite] = useState<Modalite | null>(
+    initialSelection.modalite ?? null,
+  )
+  const [volees, setVolees] = useState<LoadState<VoleeInfo[]>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
   // Recharge la liste à chaque changement de semestre ou clic sur « Réessayer ».
+  // Aucun appel avec la source Examens.
   useEffect(() => {
+    if (source === 'exams') return
+
     let cancelled = false
 
     async function loadVolees() {
@@ -48,7 +61,7 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
     return () => {
       cancelled = true
     }
-  }, [semestre, reloadCount])
+  }, [semestre, reloadCount, source])
 
   function changeSemestre(next: Semestre) {
     if (next === semestre) return
@@ -62,12 +75,29 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
     setReloadCount((count) => count + 1)
   }
 
-  // Volée choisie si elle figure dans la liste chargée du semestre affiché, sinon chaîne vide.
-  const validVolee =
-    volees.status === 'ok' && selectedVolee !== null && volees.data.includes(selectedVolee)
-      ? selectedVolee
-      : ''
-  const canSubmit = validVolee !== ''
+  // Change de volée : l'option et la modalité déjà choisies sont gardées
+  // si elles existent pour la nouvelle volée, sinon effacées.
+  function changeVolee(volee: string) {
+    setSelectedVolee(volee)
+    const info =
+      volees.status === 'ok' ? volees.data.find((item) => item.volee === volee) : undefined
+    if (!info?.options.some((option) => option.id === selectedOption)) setSelectedOption(null)
+    if (!info?.modalites.some((modalite) => modalite.id === selectedModalite)) {
+      setSelectedModalite(null)
+    }
+  }
+
+  // Volée choisie, si elle figure dans la liste chargée du semestre affiché.
+  const currentVolee =
+    volees.status === 'ok' ? volees.data.find((item) => item.volee === selectedVolee) : undefined
+  const optionChoice = resolveChoice(currentVolee?.options ?? [], selectedOption)
+  const modaliteChoice = resolveChoice(currentVolee?.modalites ?? [], selectedModalite)
+  // Source Semestre, et chaque section visible a un choix.
+  const canSubmit =
+    source === 'semester' &&
+    currentVolee !== undefined &&
+    optionChoice.isComplete &&
+    modaliteChoice.isComplete
 
   function renderVolees() {
     if (volees.status === 'loading') {
@@ -105,16 +135,18 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
       <div className="select-field">
         <select
           id="volee-select"
-          className={canSubmit ? 'select-field-input select-field-input--filled' : 'select-field-input'}
-          value={validVolee}
-          onChange={(event) => setSelectedVolee(event.target.value)}
+          className={
+            currentVolee ? 'select-field-input select-field-input--filled' : 'select-field-input'
+          }
+          value={currentVolee?.volee ?? ''}
+          onChange={(event) => changeVolee(event.target.value)}
         >
           <option value="" disabled>
             Choisissez votre volée
           </option>
-          {volees.data.map((volee) => (
-            <option key={volee} value={volee}>
-              {volee}
+          {volees.data.map((item) => (
+            <option key={item.volee} value={item.volee}>
+              {item.volee}
             </option>
           ))}
         </select>
@@ -143,10 +175,36 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
         className="selection-form"
         onSubmit={(event) => {
           event.preventDefault()
-          if (canSubmit) onSubmit({ semestre, volee: validVolee, modalite })
+          if (currentVolee === undefined || !canSubmit) return
+          onSubmit({
+            semestre,
+            volee: currentVolee.volee,
+            modalite: modaliteChoice.value,
+            option: optionChoice.value,
+          })
         }}
       >
         <div className="selection-content">
+          <fieldset className="selection-section">
+            <legend className="selection-section-title">Source des horaires</legend>
+            <div className="choice-pair">
+              {SOURCE_OPTIONS.map((option) => (
+                <label key={option.value} className="choice">
+                  <input
+                    type="radio"
+                    name="source"
+                    className="visually-hidden"
+                    value={option.value}
+                    checked={source === option.value}
+                    onChange={() => setSource(option.value)}
+                  />
+                  {option.icon}
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <fieldset className="selection-section">
             <legend className="selection-section-title">Semestre</legend>
             <div className="choice-pair">
@@ -166,31 +224,42 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
             </div>
           </fieldset>
 
-          <div className="selection-section">
-            <label htmlFor="volee-select" className="selection-section-title">
-              Volée
-            </label>
-            {renderVolees()}
-          </div>
-
-          <fieldset className="selection-section">
-            <legend className="selection-section-title">Modalité</legend>
-            <div className="choice-pair">
-              {MODALITE_OPTIONS.map((option) => (
-                <label key={option.value} className="choice">
-                  <input
-                    type="radio"
-                    name="modalite"
-                    className="visually-hidden"
-                    value={option.value}
-                    checked={modalite === option.value}
-                    onChange={() => setModalite(option.value)}
-                  />
-                  {option.label}
-                </label>
-              ))}
+          {source === 'exams' ? (
+            <div className="selection-section">
+              <p className="selection-message" role="status">
+                Les horaires d'examens ne sont pas encore disponibles sur le site.
+              </p>
             </div>
-          </fieldset>
+          ) : (
+            <>
+              <div className="selection-section">
+                <label htmlFor="volee-select" className="selection-section-title">
+                  Volée
+                </label>
+                {renderVolees()}
+              </div>
+
+              {modaliteChoice.isVisible && (
+                <ChoiceList
+                  name="modalite"
+                  legend="Modalité"
+                  choices={modaliteChoice.choices}
+                  value={modaliteChoice.value}
+                  onChange={setSelectedModalite}
+                />
+              )}
+
+              {optionChoice.isVisible && (
+                <ChoiceList
+                  name="option"
+                  legend="Option"
+                  choices={optionChoice.choices}
+                  value={optionChoice.value}
+                  onChange={setSelectedOption}
+                />
+              )}
+            </>
+          )}
         </div>
 
         <div className="selection-footer">
@@ -200,5 +269,66 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
         </div>
       </form>
     </div>
+  )
+}
+
+interface ResolvedChoice<Id extends string> {
+  choices: Choice<Id>[]
+  value: Id | undefined
+  isVisible: boolean
+  isComplete: boolean
+}
+
+// Choix d'une section (option ou modalité) pour la volée affichée :
+// aucun choix : rien ; un seul : retenu d'office, section cachée ;
+// deux ou plus : section visible, choix de l'utilisateur s'il existe pour cette volée.
+function resolveChoice<Id extends string>(
+  choices: Choice<Id>[],
+  selected: Id | null,
+): ResolvedChoice<Id> {
+  if (choices.length <= 1) {
+    return { choices, value: choices[0]?.id, isVisible: false, isComplete: true }
+  }
+  const value = choices.find((choice) => choice.id === selected)?.id
+  return { choices, value, isVisible: true, isComplete: value !== undefined }
+}
+
+interface ChoiceListProps<Id extends string> {
+  name: string
+  legend: string
+  choices: Choice<Id>[]
+  value: Id | undefined
+  onChange: (id: Id) => void
+}
+
+// Liste à choix unique, comme les listes de l'app : un bloc arrondi,
+// lignes séparées par un trait fin, coche violette sur la ligne choisie.
+function ChoiceList<Id extends string>({
+  name,
+  legend,
+  choices,
+  value,
+  onChange,
+}: ChoiceListProps<Id>) {
+  return (
+    <fieldset className="selection-section">
+      <legend className="selection-section-title">{legend}</legend>
+      <div className="radio-list">
+        {choices.map((choice) => (
+          <label key={choice.id} className="radio-list-row">
+            <input
+              type="radio"
+              name={name}
+              className="visually-hidden"
+              value={choice.id}
+              checked={value === choice.id}
+              onChange={() => onChange(choice.id)}
+            />
+            <span>{choice.label}</span>
+            <CheckIcon className="radio-list-check" />
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }

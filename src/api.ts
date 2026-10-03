@@ -1,10 +1,25 @@
-export const API_BASE_URL = 'https://horaires-api.fly.dev'
+// Adresse de l'API : VITE_API_BASE_URL, définie dans .env (production)
+// et .env.development (serveur API local pendant `npm run dev`).
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // La machine de l'API peut mettre 5 à 6 s à se réveiller : on laisse de la marge.
 const REQUEST_TIMEOUT_MS = 20_000
 
 export type Semestre = 'automne' | 'printemps'
-export type Modalite = 'tempsPlein' | 'partiel'
+export type Modalite = 'tempsPlein' | 'tempsPartiel' | 'tempsPartiel6' | 'tempsPartiel8'
+
+// Choix proposé par l'API pour une volée : identifiant et libellé affichable.
+export interface Choice<Id extends string> {
+  id: Id
+  label: string
+}
+
+// Une volée renvoyée par /api/volees, avec ses modalités et options.
+export interface VoleeInfo {
+  volee: string
+  modalites: Choice<Modalite>[]
+  options: Choice<string>[]
+}
 
 export interface Cours {
   cours: string
@@ -81,19 +96,18 @@ async function getJson<T>(path: string, params: URLSearchParams): Promise<T> {
   }
 }
 
-export function fetchVolees(semestre: Semestre): Promise<string[]> {
-  return getJson<string[]>('/api/volees', new URLSearchParams({ semestre }))
+export function fetchVolees(semestre: Semestre): Promise<VoleeInfo[]> {
+  return getJson<VoleeInfo[]>('/api/volees', new URLSearchParams({ semestre }))
 }
 
 export function fetchSchedule(
   semestre: Semestre,
   volee: string,
-  modalites: Modalite[],
+  modalite?: Modalite,
+  option?: string,
 ): Promise<ScheduleResponse> {
-  const params = new URLSearchParams({
-    semestre,
-    volee,
-    modalite: modalites.join(','),
-  })
+  const params = new URLSearchParams({ semestre, volee })
+  if (modalite) params.set('modalite', modalite)
+  if (option) params.set('option', option)
   return getJson<ScheduleResponse>('/api/schedule', params)
 }
