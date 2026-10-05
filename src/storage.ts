@@ -7,7 +7,7 @@ import {
   type ViewMode,
 } from './selection'
 
-// Préfixe : toutes les pages smeusling.github.io partagent le même localStorage.
+// Préfixe : évite toute collision avec d'autres données du même domaine dans localStorage.
 // v2 : les sélections enregistrées avant le changement d'API sont ignorées.
 const LAST_SCHEDULE_KEY = 'horaires-web:lastSelection:v2'
 

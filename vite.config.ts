@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/horaires-web/',
+  base: '/',
   plugins: [react()],
   server: { port: 5173, strictPort: true },
 })

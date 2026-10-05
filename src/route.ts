@@ -17,7 +17,7 @@ interface HistoryState {
   fromSelection: true
 }
 
-// Chemin de base du site ("/horaires-web/"), fourni par Vite d'après vite.config.ts.
+// Chemin de base du site ("/"), fourni par Vite d'après vite.config.ts.
 const BASE_URL = import.meta.env.BASE_URL
 
 export function readRoute(): Route {

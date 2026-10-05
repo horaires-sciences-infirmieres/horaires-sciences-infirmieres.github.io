@@ -2,7 +2,7 @@
 ## Projet
 
 Client web de l'app "Horaires de Cours" : React + TypeScript + Vite,
-publié sur GitHub Pages (https://smeusling.github.io/horaires-web/).
+publié sur GitHub Pages (https://horaires-sciences-infirmieres.github.io/).
 Il lit l'API https://horaires-api.fly.dev (documentation :
 https://horaires-api.fly.dev/documentation). Le site doit être
 responsive et utilisable sur mobile.
