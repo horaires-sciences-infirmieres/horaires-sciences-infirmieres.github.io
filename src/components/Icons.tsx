@@ -117,6 +117,14 @@ export function PersonIcon({ className }: IconProps) {
   )
 }
 
+export function CloseIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Icon>
+  )
+}
+
 export function TagIcon({ className }: IconProps) {
   return (
     <Icon className={className}>

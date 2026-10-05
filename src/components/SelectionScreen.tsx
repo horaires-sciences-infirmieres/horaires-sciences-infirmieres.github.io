@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { fetchVolees, type Choice, type Modalite, type Semestre, type VoleeInfo } from '../api'
 import { errorState, type LoadState } from '../loadState'
 import { getDefaultSemestre, type Selection } from '../selection'
+import { AboutDialog } from './AboutDialog'
 import { BookIcon, CheckIcon, NotepadIcon } from './Icons'
 import './SelectionScreen.css'
 
@@ -39,6 +40,7 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
   )
   const [volees, setVolees] = useState<LoadState<VoleeInfo[]>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
+  const [isAboutOpen, setIsAboutOpen] = useState(false)
 
   // Recharge la liste à chaque changement de semestre ou clic sur « Réessayer ».
   // Aucun appel avec la source Examens.
@@ -266,8 +268,18 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
           <button type="submit" className="primary-button" disabled={!canSubmit}>
             Voir l'horaire
           </button>
+          <button
+            type="button"
+            className="about-link"
+            aria-haspopup="dialog"
+            onClick={() => setIsAboutOpen(true)}
+          >
+            À propos
+          </button>
         </div>
       </form>
+
+      <AboutDialog isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
     </div>
   )
 }

@@ -1,0 +1,147 @@
+/* Panneau « À propos » : <dialog> natif ouvert avec showModal(). */
+
+.about-dialog {
+  width: min(480px, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 16px;
+  background: var(--color-background);
+  color: var(--color-text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.about-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* La page derrière le panneau ne défile pas tant qu'il est ouvert. */
+:root:has(.about-dialog[open]) {
+  overflow: hidden;
+}
+
+.about-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+}
+
+/* En-tête fixe : titre et croix */
+
+.about-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 20px;
+  border-bottom: 1px solid var(--color-separator);
+}
+
+.about-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.about-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.about-close svg {
+  width: 22px;
+  height: 22px;
+}
+
+.about-close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Contenu, qui défile si le panneau dépasse la hauteur de l'écran */
+
+.about-content {
+  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.about-content p {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.about-app-name {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.about-section {
+  margin-top: 24px;
+}
+
+.about-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.about-external-link {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.about-external-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Bouton « Contacter le support » (style .secondary-button). */
+.about-action {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* « ou écrivez à … » : .about-content devant, pour l'emporter sur .about-content p. */
+.about-content .about-email {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+/* Adresse sélectionnable d'un seul toucher ou clic, pour la copier. */
+.about-email-address {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+/* « Développé par » : .about-content devant, pour l'emporter sur .about-content p. */
+.about-content .about-credit {
+  margin: 28px 0 0;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}

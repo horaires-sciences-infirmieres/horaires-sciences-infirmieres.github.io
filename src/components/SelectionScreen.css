@@ -247,3 +247,21 @@
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* Lien discret « À propos », sous le bouton principal. */
+.about-link {
+  display: block;
+  min-height: 44px;
+  margin: 4px auto 0;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.about-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
