@@ -1,43 +1,61 @@
 import { useId, useState, type ReactNode } from 'react'
-import type { Cours } from '../api'
 import { getCourseColor } from '../courseColor'
-import { formatTimeRange } from '../dates'
-import { ChevronRightIcon, ClockIcon, PersonIcon, PinIcon, TagIcon, TextIcon } from './Icons'
+import type { DetailKind, ScheduleItem } from '../scheduleItems'
+import {
+  ChevronRightIcon,
+  ClockIcon,
+  EyeOffIcon,
+  NotepadIcon,
+  PersonIcon,
+  PinIcon,
+  TagIcon,
+  TextIcon,
+} from './Icons'
 
-interface CourseRowProps {
-  course: Cours
+// Icône de chaque élément du détail ; la couleur du cercle est dans ScheduleScreen.css.
+const DETAIL_ICONS: Record<DetailKind, ReactNode> = {
+  content: <TextIcon />,
+  format: <NotepadIcon />,
+  anonymization: <EyeOffIcon />,
+  arrival: <ClockIcon />,
+  teacher: <PersonIcon />,
+  option: <TagIcon />,
 }
 
-export function CourseRow({ course }: CourseRowProps) {
+interface ScheduleItemRowProps {
+  item: ScheduleItem
+}
+
+// Ligne d'un cours ou d'un examen ; bouton qui ouvre le détail s'il y en a un.
+export function ScheduleItemRow({ item }: ScheduleItemRowProps) {
   const [isOpen, setIsOpen] = useState(false)
   const detailId = useId()
-  const details = getDetails(course)
 
   // Contenu de la ligne : des <span>, car un bouton ne peut pas contenir de <p>.
   const summary = (
     <>
       <span
         className="course-row-bar"
-        style={{ background: getCourseColor(course.cours) }}
+        style={{ background: getCourseColor(item.title) }}
         aria-hidden="true"
       />
       <span className="course-row-body">
-        <span className="course-row-title">{course.cours}</span>
+        <span className="course-row-title">{item.title}</span>
         <span className="course-row-meta">
-          <ClockIcon />
-          {formatTimeRange(course.heureDebut, course.heureFin)}
+          {item.timeIcon === 'clock' ? <ClockIcon /> : <NotepadIcon />}
+          {item.timeText}
         </span>
-        {course.salle.trim() !== '' && (
+        {item.room.trim() !== '' && (
           <span className="course-row-meta">
             <PinIcon />
-            {course.salle}
+            {item.room}
           </span>
         )}
       </span>
     </>
   )
 
-  if (details.length === 0) {
+  if (item.details.length === 0) {
     return (
       <li>
         <div className="course-row">{summary}</div>
@@ -59,13 +77,13 @@ export function CourseRow({ course }: CourseRowProps) {
       </button>
 
       <dl id={detailId} className="course-detail" hidden={!isOpen}>
-        {details.map((detail) => (
+        {item.details.map((detail) => (
           <div key={detail.kind} className="course-detail-item">
             <span
               className={`course-detail-icon course-detail-icon--${detail.kind}`}
               aria-hidden="true"
             >
-              {detail.icon}
+              {DETAIL_ICONS[detail.kind]}
             </span>
             <div>
               <dt>{detail.label}</dt>
@@ -76,23 +94,4 @@ export function CourseRow({ course }: CourseRowProps) {
       </dl>
     </li>
   )
-}
-
-interface CourseDetail {
-  kind: 'content' | 'teacher' | 'option'
-  label: string
-  value: string
-  icon: ReactNode
-}
-
-// Éléments du détail, dans l'ordre d'affichage ; seulement ceux qui sont renseignés.
-function getDetails(course: Cours): CourseDetail[] {
-  // L'option "Tous" signifie que le cours concerne tout le monde : elle compte comme vide.
-  const option = course.option.trim().toLowerCase() === 'tous' ? '' : course.option
-  const details: CourseDetail[] = [
-    { kind: 'content', label: 'Contenu', value: course.contenuCours, icon: <TextIcon /> },
-    { kind: 'teacher', label: 'Enseignant', value: course.enseignant, icon: <PersonIcon /> },
-    { kind: 'option', label: 'Option', value: option, icon: <TagIcon /> },
-  ]
-  return details.filter((detail) => detail.value.trim() !== '')
 }

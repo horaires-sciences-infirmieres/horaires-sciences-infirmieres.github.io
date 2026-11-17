@@ -54,6 +54,16 @@ export function getInitialWeekStart(today: Date = new Date()): Date {
   return startOfWeek(isWeekend ? addDays(today, 7) : today)
 }
 
+// Semaine affichée à l'ouverture de l'horaire : celle du jour (la suivante le week-end),
+// sauf si elle précède la semaine du premier élément : on ouvre alors sur cette dernière.
+// firstDate : date du premier élément daté, ou null s'il n'y en a aucun.
+export function getOpeningWeekStart(today: Date, firstDate: Date | null): Date {
+  const todayWeek = getInitialWeekStart(today)
+  if (firstDate === null) return todayWeek
+  const firstWeek = startOfWeek(firstDate)
+  return todayWeek.getTime() < firstWeek.getTime() ? firstWeek : todayWeek
+}
+
 // "28 sept. - 4 oct."
 export function formatWeekRange(weekStart: Date): string {
   const weekEnd = addDays(weekStart, 6)

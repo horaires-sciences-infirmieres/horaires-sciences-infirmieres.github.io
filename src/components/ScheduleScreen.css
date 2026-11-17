@@ -519,6 +519,18 @@
   background: var(--color-teal);
 }
 
+.course-detail-icon--format {
+  background: var(--color-accent);
+}
+
+.course-detail-icon--anonymization {
+  background: var(--color-blue);
+}
+
+.course-detail-icon--arrival {
+  background: var(--color-orange);
+}
+
 .course-detail dt {
   font-size: 13px;
   color: var(--color-text-secondary);

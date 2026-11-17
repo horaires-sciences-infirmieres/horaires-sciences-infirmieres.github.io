@@ -1,14 +1,16 @@
-import type { Cours } from '../api'
 import { formatFullDate, formatShortMonth, formatWeekday, isSameDay, toDateKey } from '../dates'
-import { CourseRow } from './CourseRow'
+import type { ScheduleItem } from '../scheduleItems'
+import type { SourceTexts } from '../scheduleTexts'
+import { ScheduleItemRow } from './ScheduleItemRow'
 
 interface DayGroupProps {
   date: Date
-  courses: Cours[]
+  items: ScheduleItem[]
   today: Date
+  texts: SourceTexts
 }
 
-export function DayGroup({ date, courses, today }: DayGroupProps) {
+export function DayGroup({ date, items, today, texts }: DayGroupProps) {
   const isToday = isSameDay(date, today)
 
   return (
@@ -27,18 +29,20 @@ export function DayGroup({ date, courses, today }: DayGroupProps) {
             {isToday ? ", aujourd'hui" : ''}
           </span>
         </h3>
-        {courses.length > 0 && <span className="day-header-count">{courses.length} cours</span>}
+        {items.length > 0 && (
+          <span className="day-header-count">{texts.count(items.length)}</span>
+        )}
       </div>
 
-      {courses.length > 0 ? (
+      {items.length > 0 ? (
         <ul className="course-list">
-          {courses.map((course, index) => (
+          {items.map((item, index) => (
             // La liste d'un jour ne change pas d'ordre : l'index suffit comme clé.
-            <CourseRow key={index} course={course} />
+            <ScheduleItemRow key={index} item={item} />
           ))}
         </ul>
       ) : (
-        <p className="day-empty">Pas de cours</p>
+        <p className="day-empty">{texts.emptyDay}</p>
       )}
     </div>
   )

@@ -125,6 +125,16 @@ export function CloseIcon({ className }: IconProps) {
   )
 }
 
+export function EyeOffIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.1A10.5 10.5 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3 3.9M6.6 6.6A13 13 0 0 0 2 12c1 2.5 5 7 10 7a9.9 9.9 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </Icon>
+  )
+}
+
 export function TagIcon({ className }: IconProps) {
   return (
     <Icon className={className}>

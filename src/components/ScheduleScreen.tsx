@@ -1,29 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  fetchSchedule,
-  type Cours,
-  type ScheduleResponse,
-  type Semestre,
-} from '../api'
+import { fetchExams, fetchSchedule } from '../api'
 import {
   addDays,
   formatFileDate,
   formatWeekRange,
   getInitialWeekStart,
+  getOpeningWeekStart,
   parseDate,
   startOfWeek,
   toDateKey,
 } from '../dates'
 import { MODALITE_LABELS, OPTION_LABELS } from '../labels'
 import { errorState, type LoadState } from '../loadState'
+import { courseToItem, examToItem, type ScheduleItem } from '../scheduleItems'
+import { SOURCE_TEXTS } from '../scheduleTexts'
 import type { Selection, ViewMode } from '../selection'
 import { DayGroup } from './DayGroup'
 import { CalendarIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons'
 import './ScheduleScreen.css'
 
-const SEMESTRE_LABELS: Record<Semestre, string> = {
-  automne: "Semestre d'automne",
-  printemps: 'Semestre de printemps',
+// Données chargées : date du fichier et éléments (cours ou examens) prêts à afficher.
+interface ScheduleData {
+  dateFichier: string | null
+  items: ScheduleItem[]
 }
 
 interface ScheduleScreenProps {
@@ -41,38 +40,36 @@ export function ScheduleScreen({
 }: ScheduleScreenProps) {
   // Date du jour, lue une seule fois à l'ouverture de l'écran (passage de minuit non géré).
   const [today] = useState(() => new Date())
-  const [schedule, setSchedule] = useState<LoadState<ScheduleResponse>>({ status: 'loading' })
+  const [schedule, setSchedule] = useState<LoadState<ScheduleData>>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
-  const [weekStart, setWeekStart] = useState(() => getInitialWeekStart(today))
+  // Semaine choisie par l'étudiant (navigation, « Aujourd'hui ») ; null tant qu'il n'a pas
+  // navigué : on affiche alors la semaine d'ouverture, calculée avec les données chargées.
+  const [chosenWeekStart, setChosenWeekStart] = useState<Date | null>(null)
   const [isScrolled, setIsScrolled] = useState(false)
   const screenRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
   // Défilement à faire après le prochain affichage de la liste :
   // vers le jour même à l'ouverture (instantané) ou après « Aujourd'hui » (animé),
   // ou, en mode Tout (ouverture ou bascule), vers le jour même ou le prochain jour avec
-  // cours (instantané).
+  // un élément (instantané).
   const pendingScrollRef = useRef<'opening' | 'todayButton' | 'allMode' | null>(
     viewMode === 'all' ? 'allMode' : 'opening',
   )
+  const texts = SOURCE_TEXTS[selection.source]
 
   useEffect(() => {
     let cancelled = false
 
-    async function loadSchedule() {
+    async function load() {
       try {
-        const response = await fetchSchedule(
-          selection.semestre,
-          selection.volee,
-          selection.modalite,
-          selection.option,
-        )
-        if (!cancelled) setSchedule({ status: 'ok', data: response })
+        const data = await loadScheduleData(selection)
+        if (!cancelled) setSchedule({ status: 'ok', data })
       } catch (error) {
         if (!cancelled) setSchedule(errorState(error))
       }
     }
 
-    loadSchedule()
+    load()
 
     return () => {
       cancelled = true
@@ -135,7 +132,7 @@ export function ScheduleScreen({
       block: 'start',
       behavior: pendingScroll === 'todayButton' && !prefersReducedMotion ? 'smooth' : 'auto',
     })
-  }, [schedule.status, weekStart, viewMode, today])
+  }, [schedule.status, chosenWeekStart, viewMode, today])
 
   function retry() {
     setSchedule({ status: 'loading' })
@@ -144,18 +141,19 @@ export function ScheduleScreen({
 
   // Semaine précédente ou suivante : on remonte en haut, la semaine s'affiche à partir du lundi.
   function changeWeek(next: Date) {
-    setWeekStart(next)
+    setChosenWeekStart(next)
     window.scrollTo(0, 0)
   }
 
-  // « Aujourd'hui » : semaine du jour, puis défilement jusqu'au jour même une fois affichée.
+  // « Aujourd'hui » : semaine du jour (même avant le premier élément), puis défilement
+  // jusqu'au jour même une fois affichée.
   function goToToday(todayWeek: Date) {
     pendingScrollRef.current = 'todayButton'
-    setWeekStart(todayWeek)
+    setChosenWeekStart(todayWeek)
   }
 
-  // Mode Tout : défilement vers le jour même ou le prochain jour avec cours, après l'affichage.
-  // Retour au mode Semaine : semaine affichée auparavant (weekStart inchangé), en haut de page.
+  // Mode Tout : défilement vers le jour même ou le prochain jour avec un élément, après
+  // l'affichage. Retour au mode Semaine : semaine affichée auparavant, en haut de page.
   function toggleViewMode() {
     if (viewMode === 'week') {
       pendingScrollRef.current = 'allMode'
@@ -216,25 +214,28 @@ export function ScheduleScreen({
           <DayGroup
             key={toDateKey(day.date)}
             date={day.date}
-            courses={day.courses}
+            items={day.items}
             today={today}
+            texts={texts}
           />
         ))}
       </section>
     )
   }
 
-  const coursesByDate = schedule.status === 'ok' ? groupCoursesByDate(schedule.data.cours) : null
-  const week = coursesByDate !== null ? buildWeek(coursesByDate, weekStart, today) : null
+  const itemsByDate = schedule.status === 'ok' ? groupItemsByDate(schedule.data.items) : null
+  const weekStart =
+    chosenWeekStart ?? getOpeningWeekStart(today, itemsByDate ? firstDate(itemsByDate) : null)
+  const week = itemsByDate !== null ? buildWeek(itemsByDate, weekStart, today) : null
   const isAllMode = viewMode === 'all'
-  const allDays = coursesByDate !== null && isAllMode ? getAllDays(coursesByDate) : []
+  const allDays = itemsByDate !== null && isAllMode ? getAllDays(itemsByDate) : []
 
   // Annoncé aux lecteurs d'écran à chaque changement de semaine ou de mode.
   let liveMessage = ''
   if (week !== null) {
     liveMessage = isAllMode
-      ? `Tous les cours : ${countCourses(allDays)} cours`
-      : `Semaine du ${week.range} : ${week.courseCount} cours`
+      ? `${texts.allTitle} : ${texts.count(countItems(allDays))}`
+      : `Semaine du ${week.range} : ${texts.count(week.itemCount)}`
   }
 
   const details = formatDetails(selection)
@@ -257,7 +258,7 @@ export function ScheduleScreen({
           <div className="schedule-bar-text">
             <h1>
               {selection.volee}
-              <span className="schedule-bar-semestre">{` · ${SEMESTRE_LABELS[selection.semestre]}`}</span>
+              <span className="schedule-bar-semestre">{` · ${texts.semestreLabels[selection.semestre]}`}</span>
             </h1>
             {details !== '' && <p>{details}</p>}
           </div>
@@ -277,7 +278,7 @@ export function ScheduleScreen({
 
         {week !== null && isAllMode && (
           <div className="all-heading">
-            <h2 className="all-heading-title">Tous les cours</h2>
+            <h2 className="all-heading-title">{texts.allTitle}</h2>
           </div>
         )}
 
@@ -323,7 +324,7 @@ export function ScheduleScreen({
       </div>
 
       {schedule.status === 'ok' && week === null && (
-        <p className="schedule-empty">Aucun cours trouvé pour cette volée et cette modalité.</p>
+        <p className="schedule-empty">{texts.noItems}</p>
       )}
 
       {week !== null && (
@@ -332,21 +333,35 @@ export function ScheduleScreen({
         </p>
       )}
 
-      {week !== null && !isAllMode && renderDays(week.days, `Cours de la semaine du ${week.range}`)}
+      {week !== null &&
+        !isAllMode &&
+        renderDays(week.days, `${texts.weekRegionLabel} ${week.range}`)}
 
-      {week !== null && isAllMode && renderDays(allDays, 'Tous les cours')}
+      {week !== null && isAllMode && renderDays(allDays, texts.allTitle)}
     </div>
   )
 }
 
+// Charge les cours ou les examens de la sélection, convertis en éléments à afficher.
+// Mêmes erreurs dans les deux cas (ApiError : 404 « notAvailable » avec le message de l'API).
+async function loadScheduleData(selection: Selection): Promise<ScheduleData> {
+  const { semestre, volee, modalite, option } = selection
+  if (selection.source === 'exams') {
+    const response = await fetchExams(semestre, volee, modalite, option)
+    return { dateFichier: response.dateFichier, items: response.examens.map(examToItem) }
+  }
+  const response = await fetchSchedule(semestre, volee, modalite, option)
+  return { dateFichier: response.dateFichier, items: response.cours.map(courseToItem) }
+}
+
 interface WeekDay {
   date: Date
-  courses: Cours[]
+  items: ScheduleItem[]
 }
 
 interface Week {
   days: WeekDay[]
-  courseCount: number
+  itemCount: number
   range: string
   todayWeek: Date
   isPreviousDisabled: boolean
@@ -354,28 +369,28 @@ interface Week {
   isTodayWeek: boolean
 }
 
-// Calcule ce qu'il faut afficher pour la semaine ; null s'il n'y a aucun cours daté.
+// Calcule ce qu'il faut afficher pour la semaine ; null s'il n'y a aucun élément daté.
 function buildWeek(
-  coursesByDate: Map<string, Cours[]>,
+  itemsByDate: Map<string, ScheduleItem[]>,
   weekStart: Date,
   today: Date,
 ): Week | null {
-  const dateKeys = [...coursesByDate.keys()].sort()
+  const dateKeys = [...itemsByDate.keys()].sort()
   if (dateKeys.length === 0) return null
 
   const firstWeek = startOfWeek(parseDate(dateKeys[0]))
   const lastWeek = startOfWeek(parseDate(dateKeys[dateKeys.length - 1]))
   const todayWeek = getInitialWeekStart(today)
 
-  // Lundi à vendredi toujours, samedi et dimanche seulement s'ils ont des cours.
+  // Lundi à vendredi toujours, samedi et dimanche seulement s'ils ont des éléments.
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = addDays(weekStart, index)
-    return { date, courses: coursesByDate.get(toDateKey(date)) ?? [] }
-  }).filter((day, index) => index < 5 || day.courses.length > 0)
+    return { date, items: itemsByDate.get(toDateKey(date)) ?? [] }
+  }).filter((day, index) => index < 5 || day.items.length > 0)
 
   return {
     days,
-    courseCount: countCourses(days),
+    itemCount: countItems(days),
     range: formatWeekRange(weekStart),
     todayWeek,
     isPreviousDisabled: weekStart.getTime() <= firstWeek.getTime(),
@@ -384,36 +399,42 @@ function buildWeek(
   }
 }
 
-// Tous les jours qui ont des cours, du premier au dernier.
-function getAllDays(coursesByDate: Map<string, Cours[]>): WeekDay[] {
-  return [...coursesByDate.entries()]
+// Tous les jours qui ont des éléments, du premier au dernier.
+function getAllDays(itemsByDate: Map<string, ScheduleItem[]>): WeekDay[] {
+  return [...itemsByDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dateKey, courses]) => ({ date: parseDate(dateKey), courses }))
+    .map(([dateKey, items]) => ({ date: parseDate(dateKey), items }))
+}
+
+// Date du premier élément daté, ou null s'il n'y en a aucun.
+function firstDate(itemsByDate: Map<string, ScheduleItem[]>): Date | null {
+  const [firstKey] = [...itemsByDate.keys()].sort()
+  return firstKey === undefined ? null : parseDate(firstKey)
 }
 
 // Cible du défilement en mode Tout : le premier jour affiché à partir d'aujourd'hui
-// (le jour même s'il a des cours, sinon le prochain), ou le dernier jour s'il n'y en a plus.
+// (le jour même s'il a des éléments, sinon le prochain), ou le dernier jour s'il n'y en a plus.
 function findAllModeTarget(screen: HTMLElement, today: Date): Element | null {
   const todayKey = toDateKey(today)
   const days = [...screen.querySelectorAll<HTMLElement>('.day-group[data-date]')]
   return days.find((day) => (day.dataset.date ?? '') >= todayKey) ?? days.at(-1) ?? null
 }
 
-function countCourses(days: WeekDay[]): number {
-  return days.reduce((total, day) => total + day.courses.length, 0)
+function countItems(days: WeekDay[]): number {
+  return days.reduce((total, day) => total + day.items.length, 0)
 }
 
-// Regroupe les cours datés par jour (clé AAAA-MM-JJ) et les trie par heure de début.
-// Les cours sans date sont ignorés.
-function groupCoursesByDate(courses: Cours[]): Map<string, Cours[]> {
-  const groups = new Map<string, Cours[]>()
-  for (const course of courses) {
-    if (!course.date) continue
-    const group = groups.get(course.date)
+// Regroupe les éléments datés par jour (clé AAAA-MM-JJ) et les trie par heure de début.
+// Les éléments sans date sont ignorés.
+function groupItemsByDate(items: ScheduleItem[]): Map<string, ScheduleItem[]> {
+  const groups = new Map<string, ScheduleItem[]>()
+  for (const item of items) {
+    if (!item.date) continue
+    const group = groups.get(item.date)
     if (group) {
-      group.push(course)
+      group.push(item)
     } else {
-      groups.set(course.date, [course])
+      groups.set(item.date, [item])
     }
   }
   for (const group of groups.values()) {
@@ -422,11 +443,10 @@ function groupCoursesByDate(courses: Cours[]): Map<string, Cours[]> {
   return groups
 }
 
-// Tri par heure de début ; les cours sans heure passent après.
-function compareByStartTime(a: Cours, b: Cours): number {
-  if (!a.heureDebut) return b.heureDebut ? 1 : 0
-  if (!b.heureDebut) return -1
-  return a.heureDebut.localeCompare(b.heureDebut)
+// Tri par heure de début ; les éléments sans heure (travaux à rendre, horaire non précisé)
+// passent en premier, comme dans le tri de l'API : c'est la date limite de la journée.
+function compareByStartTime(a: ScheduleItem, b: ScheduleItem): number {
+  return (a.startTime ?? '').localeCompare(b.startTime ?? '')
 }
 
 // Ligne 2 de la barre : "Temps partiel 6 semestres · Santé mentale" ; éléments absents omis.
