@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { fetchVolees, type Choice, type Modalite, type Semestre, type VoleeInfo } from '../api'
 import { errorState, type LoadState } from '../loadState'
-import { getDefaultSemestre, type Selection } from '../selection'
+import { getDefaultSemestre, type ScheduleSource, type Selection } from '../selection'
 import { AboutDialog } from './AboutDialog'
 import { BookIcon, CheckIcon, NotepadIcon } from './Icons'
 import './SelectionScreen.css'
@@ -11,11 +11,9 @@ const SEMESTRE_OPTIONS: { value: Semestre; label: string }[] = [
   { value: 'printemps', label: 'Printemps' },
 ]
 
-// Source des horaires. Les examens ne sont pas encore disponibles sur le site.
-type ScheduleSource = 'semester' | 'exams'
-
+// Source des horaires : cours du semestre ou examens (même catalogue de volées).
 const SOURCE_OPTIONS: { value: ScheduleSource; label: string; icon: ReactNode }[] = [
-  { value: 'semester', label: 'Semestre', icon: <BookIcon /> },
+  { value: 'courses', label: 'Semestre', icon: <BookIcon /> },
   { value: 'exams', label: 'Examens', icon: <NotepadIcon /> },
 ]
 
@@ -25,10 +23,16 @@ interface SelectionScreenProps {
 }
 
 export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenProps) {
-  const [source, setSource] = useState<ScheduleSource>('semester')
+  // Date du jour, lue une seule fois à l'ouverture de l'écran (comme dans ScheduleScreen).
+  const [today] = useState(() => new Date())
+  const [source, setSource] = useState<ScheduleSource>(initialSelection.source ?? 'courses')
+  // Semestre de l'adresse ou de la mémorisation s'il existe, sinon celui par défaut de la source.
   const [semestre, setSemestre] = useState<Semestre>(
-    () => initialSelection.semestre ?? getDefaultSemestre(),
+    () => initialSelection.semestre ?? getDefaultSemestre(today, source),
   )
+  // Vrai dès que l'étudiant a touché un bouton de semestre sur cet écran. Un semestre venu
+  // de l'adresse ou de la mémorisation ne compte pas comme un choix manuel.
+  const [isSemestreChosenManually, setIsSemestreChosenManually] = useState(false)
   const [selectedVolee, setSelectedVolee] = useState<string | null>(
     initialSelection.volee ?? null,
   )
@@ -43,10 +47,8 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
   const [isAboutOpen, setIsAboutOpen] = useState(false)
 
   // Recharge la liste à chaque changement de semestre ou clic sur « Réessayer ».
-  // Aucun appel avec la source Examens.
+  // Même catalogue pour les cours et les examens : changer de source ne recharge rien.
   useEffect(() => {
-    if (source === 'exams') return
-
     let cancelled = false
 
     async function loadVolees() {
@@ -63,13 +65,27 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
     return () => {
       cancelled = true
     }
-  }, [semestre, reloadCount, source])
+  }, [semestre, reloadCount])
 
   function changeSemestre(next: Semestre) {
     if (next === semestre) return
     setSemestre(next)
     // La volée choisie reste en mémoire : elle réapparaît si elle figure dans la nouvelle liste.
     setVolees({ status: 'loading' })
+  }
+
+  // Semestre choisi à la main par l'étudiant (bouton Automne ou Printemps).
+  function chooseSemestre(next: Semestre) {
+    setIsSemestreChosenManually(true)
+    changeSemestre(next)
+  }
+
+  // Change de source : les choix sont conservés (même catalogue). Le semestre passe à celui
+  // par défaut de la nouvelle source, sauf si l'étudiant l'a choisi lui-même sur cet écran.
+  function changeSource(next: ScheduleSource) {
+    if (next === source) return
+    setSource(next)
+    if (!isSemestreChosenManually) changeSemestre(getDefaultSemestre(today, next))
   }
 
   function retry() {
@@ -94,12 +110,9 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
     volees.status === 'ok' ? volees.data.find((item) => item.volee === selectedVolee) : undefined
   const optionChoice = resolveChoice(currentVolee?.options ?? [], selectedOption)
   const modaliteChoice = resolveChoice(currentVolee?.modalites ?? [], selectedModalite)
-  // Source Semestre, et chaque section visible a un choix.
+  // Chaque section visible a un choix.
   const canSubmit =
-    source === 'semester' &&
-    currentVolee !== undefined &&
-    optionChoice.isComplete &&
-    modaliteChoice.isComplete
+    currentVolee !== undefined && optionChoice.isComplete && modaliteChoice.isComplete
 
   function renderVolees() {
     if (volees.status === 'loading') {
@@ -179,6 +192,7 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
           event.preventDefault()
           if (currentVolee === undefined || !canSubmit) return
           onSubmit({
+            source,
             semestre,
             volee: currentVolee.volee,
             modalite: modaliteChoice.value,
@@ -198,7 +212,7 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
                     className="visually-hidden"
                     value={option.value}
                     checked={source === option.value}
-                    onChange={() => setSource(option.value)}
+                    onChange={() => changeSource(option.value)}
                   />
                   {option.icon}
                   {option.label}
@@ -218,7 +232,7 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
                     className="visually-hidden"
                     value={option.value}
                     checked={semestre === option.value}
-                    onChange={() => changeSemestre(option.value)}
+                    onChange={() => chooseSemestre(option.value)}
                   />
                   {option.label}
                 </label>
@@ -226,41 +240,31 @@ export function SelectionScreen({ initialSelection, onSubmit }: SelectionScreenP
             </div>
           </fieldset>
 
-          {source === 'exams' ? (
-            <div className="selection-section">
-              <p className="selection-message" role="status">
-                Les horaires d'examens ne sont pas encore disponibles sur le site.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="selection-section">
-                <label htmlFor="volee-select" className="selection-section-title">
-                  Volée
-                </label>
-                {renderVolees()}
-              </div>
+          <div className="selection-section">
+            <label htmlFor="volee-select" className="selection-section-title">
+              Volée
+            </label>
+            {renderVolees()}
+          </div>
 
-              {modaliteChoice.isVisible && (
-                <ChoiceList
-                  name="modalite"
-                  legend="Modalité"
-                  choices={modaliteChoice.choices}
-                  value={modaliteChoice.value}
-                  onChange={setSelectedModalite}
-                />
-              )}
+          {modaliteChoice.isVisible && (
+            <ChoiceList
+              name="modalite"
+              legend="Modalité"
+              choices={modaliteChoice.choices}
+              value={modaliteChoice.value}
+              onChange={setSelectedModalite}
+            />
+          )}
 
-              {optionChoice.isVisible && (
-                <ChoiceList
-                  name="option"
-                  legend="Option"
-                  choices={optionChoice.choices}
-                  value={optionChoice.value}
-                  onChange={setSelectedOption}
-                />
-              )}
-            </>
+          {optionChoice.isVisible && (
+            <ChoiceList
+              name="option"
+              legend="Option"
+              choices={optionChoice.choices}
+              value={optionChoice.value}
+              onChange={setSelectedOption}
+            />
           )}
         </div>
 

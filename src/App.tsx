@@ -88,12 +88,17 @@ function App() {
     if (route.screen === 'schedule') saveLastSchedule(route.selection, route.viewMode)
   }, [route])
 
-  // Titre de l'onglet.
+  // Titre de l'onglet : « IPS 2026 · Horaires de Cours », ou « IPS 2026 · Examens · … ».
   useEffect(() => {
+    if (route.screen !== 'schedule') {
+      document.title = 'Horaires de Cours'
+      return
+    }
+    const { volee, source } = route.selection
     document.title =
-      route.screen === 'schedule'
-        ? `${route.selection.volee} · Horaires de Cours`
-        : 'Horaires de Cours'
+      source === 'exams'
+        ? `${volee} · Examens · Horaires de Cours`
+        : `${volee} · Horaires de Cours`
   }, [route])
 
   // Remonte en haut de la page à chaque changement d'écran.

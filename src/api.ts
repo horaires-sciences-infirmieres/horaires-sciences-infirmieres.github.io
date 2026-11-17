@@ -38,6 +38,25 @@ export interface ScheduleResponse {
   cours: Cours[]
 }
 
+export interface Examen {
+  cours: string
+  modaliteExamen: string // forme de l'examen, par exemple « Oral individuel » (sans lien avec modalite)
+  anonymisation: string // "Oui", "Non" ou ""
+  volee: string
+  option: string
+  enseignant: string
+  salle: string
+  date?: string // AAAA-MM-JJ
+  heureDebut?: string // HH:MM ; absente pour les travaux à rendre
+  heureFin?: string // HH:MM
+  heureArrivee?: string // HH:MM, arrivée pour le contrôle d'identité
+}
+
+export interface ExamsResponse {
+  dateFichier: string | null // AAAA-MM-JJ
+  examens: Examen[]
+}
+
 export type ApiErrorType = 'notAvailable' | 'server' | 'network' | 'timeout'
 
 export class ApiError extends Error {
@@ -100,14 +119,37 @@ export function fetchVolees(semestre: Semestre): Promise<VoleeInfo[]> {
   return getJson<VoleeInfo[]>('/api/volees', new URLSearchParams({ semestre }))
 }
 
+// Paramètres communs à /api/schedule et /api/exams.
+function selectionParams(
+  semestre: Semestre,
+  volee: string,
+  modalite?: Modalite,
+  option?: string,
+): URLSearchParams {
+  const params = new URLSearchParams({ semestre, volee })
+  if (modalite) params.set('modalite', modalite)
+  if (option) params.set('option', option)
+  return params
+}
+
 export function fetchSchedule(
   semestre: Semestre,
   volee: string,
   modalite?: Modalite,
   option?: string,
 ): Promise<ScheduleResponse> {
-  const params = new URLSearchParams({ semestre, volee })
-  if (modalite) params.set('modalite', modalite)
-  if (option) params.set('option', option)
-  return getJson<ScheduleResponse>('/api/schedule', params)
+  return getJson<ScheduleResponse>(
+    '/api/schedule',
+    selectionParams(semestre, volee, modalite, option),
+  )
+}
+
+// Examens : mêmes paramètres, mêmes erreurs et même délai que fetchSchedule (via getJson).
+export function fetchExams(
+  semestre: Semestre,
+  volee: string,
+  modalite?: Modalite,
+  option?: string,
+): Promise<ExamsResponse> {
+  return getJson<ExamsResponse>('/api/exams', selectionParams(semestre, volee, modalite, option))
 }

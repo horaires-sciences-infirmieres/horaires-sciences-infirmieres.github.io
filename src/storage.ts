@@ -2,6 +2,7 @@ import {
   completeSelection,
   parseSelection,
   parseViewMode,
+  sourceValue,
   viewModeValue,
   type Selection,
   type ViewMode,
@@ -35,10 +36,15 @@ export function loadLastSchedule(): LastSchedule | null {
 
 export function saveLastSchedule(selection: Selection, viewMode: ViewMode) {
   try {
-    // "vue" absent en mode Semaine : JSON.stringify omet les valeurs undefined.
+    // "source" et "vue" absents pour les cours et le mode Semaine :
+    // JSON.stringify omet les valeurs undefined.
     localStorage.setItem(
       LAST_SCHEDULE_KEY,
-      JSON.stringify({ ...selection, vue: viewModeValue(viewMode) }),
+      JSON.stringify({
+        ...selection,
+        source: sourceValue(selection.source),
+        vue: viewModeValue(viewMode),
+      }),
     )
   } catch {
     // Stockage indisponible (navigation privée, désactivé) : on continue sans mémoriser.

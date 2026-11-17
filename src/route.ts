@@ -2,6 +2,7 @@ import {
   completeSelection,
   parseSelection,
   parseViewMode,
+  sourceValue,
   viewModeValue,
   type Selection,
   type ViewMode,
@@ -23,6 +24,7 @@ const BASE_URL = import.meta.env.BASE_URL
 export function readRoute(): Route {
   const params = new URLSearchParams(window.location.search)
   const initialSelection = parseSelection({
+    source: params.get('source'),
     semestre: params.get('semestre'),
     volee: params.get('volee'),
     modalite: params.get('modalite'),
@@ -40,7 +42,11 @@ export function hasNoParams(): boolean {
 }
 
 function scheduleUrl(selection: Selection, viewMode: ViewMode): string {
-  const params = new URLSearchParams({ semestre: selection.semestre, volee: selection.volee })
+  const params = new URLSearchParams()
+  const source = sourceValue(selection.source)
+  if (source) params.set('source', source)
+  params.set('semestre', selection.semestre)
+  params.set('volee', selection.volee)
   if (selection.modalite) params.set('modalite', selection.modalite)
   if (selection.option) params.set('option', selection.option)
   const vue = viewModeValue(viewMode)
@@ -79,7 +85,7 @@ export function cameFromSelection(): boolean {
   )
 }
 
-// Clé qui identifie une sélection, pour recréer l'écran horaire quand elle change.
+// Clé qui identifie une sélection (source comprise), pour recréer l'écran horaire quand elle change.
 // Sans le mode : changer de mode ne doit pas recréer l'écran.
 export function selectionKey(selection: Selection): string {
   return scheduleUrl(selection, 'week')
